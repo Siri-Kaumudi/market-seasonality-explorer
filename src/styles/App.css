@@ -1,0 +1,34 @@
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  touch-action: manipulation;
+}
+
+.MuiContainer-root {
+  transition: transform 0.3s ease;
+}
+
+@media (max-width: 600px) {
+  .MuiContainer-root {
+    padding: 8px !important;
+  }
+  .MuiTypography-h4 {
+    font-size: 1.5rem;
+  }
+  .MuiBox-root {
+    flex-direction: column;
+  }
+  .MuiGrid-item {
+    width: 100%;
+  }
+  .MuiButton-root {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 900px) {
+  .MuiGrid-item {
+    width: 50%;
+  }
+}
