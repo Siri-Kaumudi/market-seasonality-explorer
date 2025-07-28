@@ -1,13 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Container, Grid, Paper, Typography, Box, Tabs, Tab, Button, Select, MenuItem, FormControl, Alert } from '@mui/material';
+import { Container, Grid, Paper, Typography, Box, Tabs, Tab, Button, Select, MenuItem, FormControl, InputLabel, Alert } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import axios from 'axios';
 import { format, addDays, addWeeks, addMonths, startOfWeek, startOfMonth, differenceInDays } from 'date-fns';
 import CalendarView from './components/CalendarView';
 import DashboardPanel from './components/DashboardPanel';
-import mockData from '../mock.json';
+//import mockData from './mock-data.json';
+//import mockDataScenarios from './mock-data-scenarios.json';
 import './styles/App.css';
+
+export function calculateRSI(prices) {
+  if (prices.length < 14) return 0;
+  let gains = 0, losses = 0;
+  for (let i = 1; i < prices.length; i++) {
+    const diff = prices[i] - prices[i - 1];
+    if (diff >= 0) gains += diff;
+    else losses -= diff;
+  }
+  const avgGain = gains / 14;
+  const avgLoss = losses / 14;
+  const rs = avgGain / (avgLoss || 1);
+  return 100 - (100 / (1 + rs));
+}
 
 function App() {
   const [view, setView] = useState('daily');
@@ -20,10 +35,16 @@ function App() {
   const [theme, setTheme] = useState('default');
   const [alerts, setAlerts] = useState([]);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [dataScenario, setDataScenario] = useState('default');
 
-  // Fetch data from Binance API with mock data fallback
   useEffect(() => {
     const fetchData = async (symbol, interval, limit, setDataFunc) => {
+      if (dataScenario !== 'default') {
+        const scenarioData = mockDataScenarios[dataScenario].map(d => ({ ...d, date: new Date(d.date) }));
+        setDataFunc(scenarioData);
+        setAlerts([{ date: format(new Date(), 'yyyy-MM-dd'), message: `Using ${dataScenario} scenario data` }]);
+        return;
+      }
       try {
         const response = await axios.get('https://api.binance.com/api/v3/klines', {
           params: { symbol, interval, limit },
@@ -56,7 +77,6 @@ function App() {
           setDataFunc(formattedData);
         }
 
-        // Check for alerts
         const newAlerts = formattedData
           .filter(d => d.volatility > 5 || Math.abs(d.performance) > 1000)
           .map(d => ({
@@ -77,29 +97,12 @@ function App() {
     if (dateRange[0] && dateRange[1]) {
       fetchData(selectedInstrument, interval, differenceInDays(dateRange[1], dateRange[0]) + 1, setCompareData);
     }
-  }, [view, selectedInstrument, dateRange]);
+  }, [view, selectedInstrument, dateRange, dataScenario]);
 
-  // Calculate RSI (simplified)
-  const calculateRSI = (prices) => {
-    if (prices.length < 14) return 0;
-    let gains = 0, losses = 0;
-    for (let i = 1; i < prices.length; i++) {
-      const diff = prices[i] - prices[i - 1];
-      if (diff >= 0) gains += diff;
-      else losses -= diff;
-    }
-    const avgGain = gains / 14;
-    const avgLoss = losses / 14;
-    const rs = avgGain / (avgLoss || 1);
-    return 100 - (100 / (1 + rs));
-  };
-
-  // Handle view change
   const handleViewChange = (event, newView) => {
     setView(newView);
   };
 
-  // Handle date navigation
   const navigateDate = (direction) => {
     if (view === 'daily') {
       setSelectedDate(addDays(selectedDate, direction));
@@ -110,12 +113,10 @@ function App() {
     }
   };
 
-  // Handle date range selection
   const handleDateRangeSelect = (range) => {
     setDateRange(range);
   };
 
-  // Calculate aggregated data
   const getAggregatedData = () => {
     if (view === 'daily') return data;
     const aggregated = [];
@@ -174,7 +175,7 @@ function App() {
           </Box>
           <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
             <FormControl sx={{ minWidth: 120 }}>
-              {/* <InputLabel>Instrument</InputLabel> */}
+              <InputLabel>Instrument</InputLabel>
               <Select value={selectedInstrument} onChange={(e) => setSelectedInstrument(e.target.value)}>
                 <MenuItem value="BTCUSDT">BTC/USDT</MenuItem>
                 <MenuItem value="ETHUSDT">ETH/USDT</MenuItem>
@@ -182,12 +183,21 @@ function App() {
               </Select>
             </FormControl>
             <FormControl sx={{ minWidth: 120 }}>
-              {/* <InputLabel>Metric</InputLabel> */}
+              <InputLabel>Metric</InputLabel>
               <Select value={metricFilter} onChange={(e) => setMetricFilter(e.target.value)}>
                 <MenuItem value="all">All</MenuItem>
                 <MenuItem value="volatility">Volatility</MenuItem>
                 <MenuItem value="volume">Volume</MenuItem>
                 <MenuItem value="performance">Performance</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl sx={{ minWidth: 120 }}>
+              <InputLabel>Data Scenario</InputLabel>
+              <Select value={dataScenario} onChange={(e) => setDataScenario(e.target.value)}>
+                <MenuItem value="default">Default</MenuItem>
+                <MenuItem value="highVolatility">High Volatility</MenuItem>
+                <MenuItem value="noData">No Data</MenuItem>
+                <MenuItem value="negativePerformance">Negative Performance</MenuItem>
               </Select>
             </FormControl>
           </Box>
